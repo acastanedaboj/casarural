@@ -210,6 +210,27 @@ export default function EquipoGumeo() {
   const statusTimer = useRef(null);
   const kbOpen = useKeyboardOpen();
 
+  /* ---- altura real del viewport ----
+     Bug de WebKit en PWAs de iOS: al cerrar el teclado a veces no restaura
+     la altura del viewport y el layout queda encogido, dejando un hueco
+     bajo la barra de pestañas. Seguimos la altura del visualViewport. */
+  useEffect(() => {
+    const vv = window.visualViewport;
+    const apply = () => {
+      const h = vv ? vv.height : window.innerHeight;
+      document.documentElement.style.setProperty("--app-h", Math.round(h) + "px");
+    };
+    apply();
+    if (vv) vv.addEventListener("resize", apply);
+    window.addEventListener("resize", apply);
+    window.addEventListener("orientationchange", apply);
+    return () => {
+      if (vv) vv.removeEventListener("resize", apply);
+      window.removeEventListener("resize", apply);
+      window.removeEventListener("orientationchange", apply);
+    };
+  }, []);
+
   /* ---- initial load ---- */
   useEffect(() => {
     (async () => {
@@ -279,7 +300,7 @@ export default function EquipoGumeo() {
   }
 
   return (
-    <div style={{ height: "100%", display: "flex", flexDirection: "column", background: T.bg, color: T.ink, fontFamily: "'Nunito', 'Segoe UI', sans-serif" }}>
+    <div style={{ height: "var(--app-h, 100%)", display: "flex", flexDirection: "column", background: T.bg, color: T.ink, fontFamily: "'Nunito', 'Segoe UI', sans-serif" }}>
       <FontLoader />
 
       <div style={{ flex: 1, overflowY: "auto", WebkitOverflowScrolling: "touch" }}>
