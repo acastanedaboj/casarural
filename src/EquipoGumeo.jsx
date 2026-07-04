@@ -184,13 +184,6 @@ export default function EquipoGumeo() {
     }
   }, [data]);
 
-  const refresh = async () => {
-    flashStatus("saving");
-    const remote = await fetchRemote();
-    if (remote) setData(remote);
-    flashStatus("saved");
-  };
-
   if (!data) {
     return (
       <div style={{ minHeight: "100vh", background: T.bg, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Nunito', sans-serif", color: T.sub }}>
@@ -203,7 +196,7 @@ export default function EquipoGumeo() {
   return (
     <div style={{ minHeight: "100vh", background: T.bg, color: T.ink, fontFamily: "'Nunito', 'Segoe UI', sans-serif", paddingBottom: 92 }}>
       <FontLoader />
-      <Header status={status} onRefresh={refresh} />
+      <Header status={status} />
 
       <main style={{ maxWidth: 560, margin: "0 auto", padding: "16px 14px 0" }}>
         {tab === "finca" && <FincaTab />}
@@ -244,7 +237,7 @@ function FontLoader() {
   );
 }
 
-function Header({ status, onRefresh }) {
+function Header({ status }) {
   return (
     <header style={{ background: T.cobalt, borderBottom: `6px solid ${T.albero}`, padding: "18px 16px 14px", position: "relative" }}>
       <div style={{ maxWidth: 560, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -256,17 +249,11 @@ function Header({ status, onRefresh }) {
             Finca Buytrón · 16–19 julio
           </div>
         </div>
-        <button
-          onClick={onRefresh}
-          aria-label="Actualizar datos"
-          style={{
-            background: "rgba(255,255,255,0.15)", border: "2px solid rgba(255,255,255,0.4)",
-            color: "#fff", borderRadius: 12, padding: "8px 12px", fontSize: 13, fontWeight: 800, cursor: "pointer",
-            minWidth: 92,
-          }}
-        >
-          {status === "saving" ? "⏳…" : status === "saved" ? "✓ Al día" : status === "error" ? "⚠️ Error" : "🔄 Actualizar"}
-        </button>
+        {status !== "" && (
+          <span aria-live="polite" style={{ color: "#fff", fontSize: 13, fontWeight: 800, whiteSpace: "nowrap" }}>
+            {status === "saving" ? "⏳" : status === "saved" ? "✓" : "⚠️ Sin conexión"}
+          </span>
+        )}
       </div>
     </header>
   );
