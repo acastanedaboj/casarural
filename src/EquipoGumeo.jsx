@@ -328,6 +328,19 @@ function SectionTitle({ emoji, children, right }) {
   );
 }
 
+function InfoList({ items }) {
+  return (
+    <div>
+      {items.map(([k, v]) => (
+        <div key={k} style={{ padding: "9px 0", borderBottom: `1px solid ${T.line}`, fontSize: 14, lineHeight: 1.45 }}>
+          <strong style={{ display: "block", marginBottom: 2 }}>{k}</strong>
+          <span style={{ color: T.sub }}>{v}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /* ============================================================
    TAB 1 — LA FINCA
    ============================================================ */
@@ -373,14 +386,7 @@ function FincaTab() {
 
       <Card>
         <SectionTitle emoji="📋">Condiciones que conviene saber</SectionTitle>
-        <div>
-          {condiciones.map(([k, v]) => (
-            <div key={k} style={{ padding: "9px 0", borderBottom: `1px solid ${T.line}`, fontSize: 14, lineHeight: 1.45 }}>
-              <strong style={{ display: "block", marginBottom: 2 }}>{k}</strong>
-              <span style={{ color: T.sub }}>{v}</span>
-            </div>
-          ))}
-        </div>
+        <InfoList items={condiciones} />
       </Card>
 
       <Card>
@@ -406,6 +412,28 @@ const btnLink = (bg) => ({
 /* ============================================================
    TAB 2 — EL VIAJE
    ============================================================ */
+const PLANES_FINCA = [
+  ["🍷 Cata de vinos", "Visita al viñedo + cata de vinos propios y de la D.O. Montilla-Moriles, con aperitivo de productos artesanos. Desde 20 €/pers."],
+  ["🍽️ Comida o cena maridada", "Cocina local con cata guiada, se puede montar en el propio viñedo. Desde 55 €/pers."],
+  ["🍇 Un día de viña", "Participar en las labores de la viña según la época, con almuerzo y cata exclusiva. Desde 48 €/pers."],
+  ["🐎 Bajo consulta", "Visitas a bodegas y lagares de la zona y paseos en coche de caballos."],
+];
+
+const VER_MONTILLA = [
+  ["🍾 Bodegas con solera", "Alvear (1729, la más antigua de Andalucía) y Pérez Barquero: visita guiada con cata. Bodegas Robles, pionera del vino ecológico."],
+  ["🛢️ Tonelería del Sur", "La única ruta del vino de España donde ver fabricar barricas a mano."],
+  ["🏰 Casco histórico", "Casa-museo del Inca Garcilaso, castillo, iglesia de Santiago y Convento de Santa Clara (con sus famosas yemas). Museos gratis: Garnelo y Arqueológico."],
+  ["🧁 Pastelería Manuel Aguilar", "Parada dulce obligatoria: lenguas de crema, alfajores y pastelón. De las mejores de Andalucía."],
+];
+
+const COMER_ZONA = [
+  ["🥘 Taberna Bolero", "Tapeo de nivel con vinos de la tierra; famosa su alcachofa rellena de rabo de toro."],
+  ["🥩 La Cepa Montillana", "Carnes y cocina mediterránea, de lo mejor valorado de Montilla."],
+  ["🍢 Taberna Los Lagares y La Chiva", "Clásicos montillanos de tapeo y cocina casera."],
+  ["🔥 Asador La Plaza / El Jarriero", "Para los muy carnívoros, si sobrevivís a nuestras BBQ."],
+  ["🥣 Qué pedir", "Salmorejo, flamenquín, berenjenas con miel de caña y rabo de toro. De beber, fino o PX de la D.O."],
+];
+
 function ViajeTab({ data, mutate }) {
   const [newPerson, setNewPerson] = useState("");
   const start = new Date(2026, 6, 16); // 16 julio 2026
@@ -470,6 +498,27 @@ function ViajeTab({ data, mutate }) {
           />
           <button onClick={addPerson} style={addBtnStyle}>Añadir</button>
         </div>
+      </Card>
+
+      <Card>
+        <SectionTitle emoji="🍇">Planes en la finca</SectionTitle>
+        <InfoList items={PLANES_FINCA} />
+        <p style={{ margin: "10px 0 0", fontSize: 13, color: T.sub }}>
+          Hay que reservar con antelación:{" "}
+          <a href="tel:+34630768877" style={{ color: T.cobalt, fontWeight: 800 }}>630 768 877</a> ·{" "}
+          <a href="mailto:reservas@fincabuytron.com" style={{ color: T.cobalt, fontWeight: 800 }}>reservas@fincabuytron.com</a>
+        </p>
+      </Card>
+
+      <Card>
+        <SectionTitle emoji="🏰">Qué ver por Montilla</SectionTitle>
+        <p style={{ margin: "0 0 4px", fontSize: 13, color: T.sub }}>A solo 3 km de la finca.</p>
+        <InfoList items={VER_MONTILLA} />
+      </Card>
+
+      <Card>
+        <SectionTitle emoji="🍽️">Dónde comer por la zona</SectionTitle>
+        <InfoList items={COMER_ZONA} />
       </Card>
 
       <Card>
