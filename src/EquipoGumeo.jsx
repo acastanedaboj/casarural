@@ -240,7 +240,7 @@ export default function EquipoGumeo() {
 
   if (!data) {
     return (
-      <div style={{ minHeight: "100vh", background: T.bg, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Nunito', sans-serif", color: T.sub }}>
+      <div style={{ height: "100%", background: T.bg, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Nunito', sans-serif", color: T.sub }}>
         <FontLoader />
         Cargando el cartel mágico…
       </div>
@@ -248,20 +248,22 @@ export default function EquipoGumeo() {
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: T.bg, color: T.ink, fontFamily: "'Nunito', 'Segoe UI', sans-serif", paddingBottom: 92 }}>
+    <div style={{ height: "100%", display: "flex", flexDirection: "column", background: T.bg, color: T.ink, fontFamily: "'Nunito', 'Segoe UI', sans-serif" }}>
       <FontLoader />
-      <Header status={status} />
 
-      <main style={{ maxWidth: 560, margin: "0 auto", padding: "16px 14px 0" }}>
-        {tab === "finca" && <FincaTab />}
-        {tab === "viaje" && <ViajeTab data={data} mutate={mutate} />}
-        {tab === "comidas" && <ComidasTab data={data} mutate={mutate} setEditing={setEditing} />}
-        {tab === "compra" && <CompraTab data={data} mutate={mutate} setEditing={setEditing} />}
-        {tab === "gastos" && <GastosTab data={data} setEditing={setEditing} />}
-        <footer style={{ textAlign: "center", padding: "28px 20px 10px", color: T.sub, fontSize: 13, fontStyle: "italic" }}>
-          «Que falte sueño… pero nunca café, hielo ni pan para mojar»
-        </footer>
-      </main>
+      <div style={{ flex: 1, overflowY: "auto", WebkitOverflowScrolling: "touch" }}>
+        <Header status={status} />
+        <main style={{ maxWidth: 560, margin: "0 auto", padding: "16px 14px 24px" }}>
+          {tab === "finca" && <FincaTab />}
+          {tab === "viaje" && <ViajeTab data={data} mutate={mutate} />}
+          {tab === "comidas" && <ComidasTab data={data} mutate={mutate} setEditing={setEditing} />}
+          {tab === "compra" && <CompraTab data={data} mutate={mutate} setEditing={setEditing} />}
+          {tab === "gastos" && <GastosTab data={data} setEditing={setEditing} />}
+          <footer style={{ textAlign: "center", padding: "28px 20px 10px", color: T.sub, fontSize: 13, fontStyle: "italic" }}>
+            «Que falte sueño… pero nunca café, hielo ni pan para mojar»
+          </footer>
+        </main>
+      </div>
 
       <TabBar tab={tab} setTab={setTab} />
 
@@ -292,7 +294,10 @@ function FontLoader() {
   return (
     <style>{`
       * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-      html, body { overflow-x: hidden; }
+      /* App-shell: la página no hace scroll (así la barra inferior no puede
+         desplazarse en iOS); desplaza el contenedor interior de contenido. */
+      html, body, #root { height: 100%; }
+      html, body { overflow: hidden; overscroll-behavior: none; }
       button { font-family: inherit; }
       input, textarea, select { font-family: inherit; }
       @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
@@ -342,7 +347,7 @@ const TABS = [
 function TabBar({ tab, setTab }) {
   return (
     <nav style={{
-      position: "fixed", bottom: 0, left: 0, right: 0, background: T.card,
+      flexShrink: 0, background: T.card,
       borderTop: `1px solid ${T.line}`, display: "flex", justifyContent: "center",
       boxShadow: "0 -4px 16px rgba(20,50,70,0.08)", zIndex: 40,
       paddingBottom: "env(safe-area-inset-bottom)",
@@ -518,6 +523,7 @@ function ViajeTab({ data, mutate }) {
     mutate((d) => {
       d.people = d.people.filter((p) => p !== name);
       d.cats.forEach((c) => c.items.forEach((i) => { if (i.who === name) i.who = ""; }));
+      d.bring.forEach((i) => { if (i.who === name) i.who = ""; });
       return d;
     });
   };
@@ -647,7 +653,7 @@ function ComidasTab({ data, mutate, setEditing }) {
 function CompraTab({ data, mutate, setEditing }) {
   return (
     <>
-      <BringCard data={data} mutate={mutate} />
+      <BringCard data={data} mutate={mutate} setEditing={setEditing} />
       {data.cats.map((cat) => (
         <CategoryCard key={cat.id} cat={cat} data={data} mutate={mutate} setEditing={setEditing} />
       ))}
@@ -667,14 +673,14 @@ function ProgressBar({ done, total, color }) {
   );
 }
 
-function BringCard({ data, mutate }) {
+function BringCard({ data, mutate, setEditing }) {
   const [txt, setTxt] = useState("");
   const done = data.bring.filter((b) => b.done).length;
 
   const add = () => {
     const t = txt.trim();
     if (!t) return;
-    mutate((d) => { d.bring.push({ id: uid(), text: t, done: false }); return d; });
+    mutate((d) => { d.bring.push({ id: uid(), text: t, done: false, who: "" }); return d; });
     setTxt("");
   };
 
@@ -687,12 +693,24 @@ function BringCard({ data, mutate }) {
           <Checkbox checked={b.done} onToggle={() =>
             mutate((d) => { const x = d.bring.find((i) => i.id === b.id); if (x) x.done = !x.done; return d; })
           } />
-          <span style={{ flex: 1, fontSize: 15, fontWeight: 600, color: b.done ? T.done : T.ink, textDecoration: b.done ? "line-through" : "none" }}>
-            {b.text}
-          </span>
           <button
-            onClick={() => mutate((d) => { d.bring = d.bring.filter((i) => i.id !== b.id); return d; })}
-            aria-label="Eliminar" style={{ background: "none", border: "none", color: T.sub, cursor: "pointer", fontSize: 16, padding: 4 }}>✕</button>
+            onClick={() => setEditing({ type: "item", catId: null, item: b })}
+            style={{ flex: 1, textAlign: "left", background: "none", border: "none", cursor: "pointer", padding: 0, minWidth: 0 }}
+          >
+            <span style={{ display: "block", fontSize: 15, fontWeight: 600, color: b.done ? T.done : T.ink, textDecoration: b.done ? "line-through" : "none", lineHeight: 1.35 }}>
+              {b.text}
+            </span>
+          </button>
+          <button
+            onClick={() => setEditing({ type: "item", catId: null, item: b })}
+            style={{
+              flexShrink: 0, border: "none", cursor: "pointer", borderRadius: 999, padding: "5px 10px",
+              fontSize: 12, fontWeight: 800,
+              background: b.who ? T.vine : T.bg, color: b.who ? "#fff" : T.sub,
+            }}
+          >
+            {b.who || "¿quién?"}
+          </button>
         </div>
       ))}
       <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
@@ -980,13 +998,20 @@ function EditModal({ editing, people, onClose, mutate }) {
   const [desc, setDesc] = useState(isItem ? "" : editing.meal.desc);
   const [date, setDate] = useState(isItem ? "" : editing.meal.date || "");
   const [slot, setSlot] = useState(isItem ? "" : editing.meal.slot || "");
-  const [who, setWho] = useState(isItem ? editing.item.who : "");
+  const [who, setWho] = useState(isItem ? editing.item.who || "" : "");
+
+  // Las comidas requieren día y momento para poder ordenarse en el plan
+  const valid = isItem || (Boolean(date) && Boolean(slot));
+
+  // Los ítems viven en una categoría de Mercadona (catId) o en "Ya llevamos" (catId null)
+  const itemList = (d) => (editing.catId ? (d.cats.find((x) => x.id === editing.catId) || {}).items : d.bring);
 
   const save = () => {
+    if (!valid) return;
     if (isItem) {
       mutate((d) => {
-        const c = d.cats.find((x) => x.id === editing.catId);
-        const it = c && c.items.find((i) => i.id === editing.item.id);
+        const list = itemList(d);
+        const it = list && list.find((i) => i.id === editing.item.id);
         if (it) { it.text = text.trim() || it.text; it.who = who; }
         return d;
       });
@@ -1007,8 +1032,12 @@ function EditModal({ editing, people, onClose, mutate }) {
   const remove = () => {
     if (isItem) {
       mutate((d) => {
-        const c = d.cats.find((x) => x.id === editing.catId);
-        if (c) c.items = c.items.filter((i) => i.id !== editing.item.id);
+        if (editing.catId) {
+          const c = d.cats.find((x) => x.id === editing.catId);
+          if (c) c.items = c.items.filter((i) => i.id !== editing.item.id);
+        } else {
+          d.bring = d.bring.filter((i) => i.id !== editing.item.id);
+        }
         return d;
       });
     } else if (!editing.isNew) {
@@ -1090,8 +1119,12 @@ function EditModal({ editing, people, onClose, mutate }) {
               🗑️ Eliminar
             </button>
           )}
-          <button onClick={save} style={{ flex: 1, background: T.cobalt, color: "#fff", border: "none", borderRadius: 12, padding: "12px 14px", fontWeight: 800, fontSize: 15, cursor: "pointer" }}>
-            Guardar
+          <button
+            onClick={save}
+            disabled={!valid}
+            style={{ flex: 1, background: valid ? T.cobalt : T.done, color: "#fff", border: "none", borderRadius: 12, padding: "12px 14px", fontWeight: 800, fontSize: 15, cursor: valid ? "pointer" : "default" }}
+          >
+            {valid ? "Guardar" : "Elige día y momento"}
           </button>
         </div>
       </div>
