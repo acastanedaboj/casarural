@@ -239,7 +239,13 @@ function FontLoader() {
 
 function Header({ status }) {
   return (
-    <header style={{ background: T.cobalt, borderBottom: `6px solid ${T.albero}`, padding: "18px 16px 14px", position: "relative" }}>
+    <header style={{
+      background: T.cobalt, borderBottom: `6px solid ${T.albero}`,
+      padding: "18px 16px 14px",
+      // En modo PWA a pantalla completa, el header se extiende bajo la barra de estado
+      paddingTop: "calc(18px + env(safe-area-inset-top))",
+      position: "relative",
+    }}>
       <div style={{ maxWidth: 560, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div>
           <div style={{ fontFamily: "'Titan One', cursive", fontSize: 28, lineHeight: 1, color: "#fff", letterSpacing: 0.5, textShadow: `2px 2px 0 ${T.cobaltDark}` }}>
