@@ -1,23 +1,42 @@
 /* ============================================================
    Capa de almacenamiento intercambiable.
 
-   La app original vivía en un artifact de claude.ai y usaba
-   `window.storage` (compartido entre todos los usuarios). Fuera
-   de claude.ai esa API no existe, así que aquí se elige backend:
+   Orden de preferencia:
 
-   1. `window.storage` si existe (compatibilidad con el artifact).
-   2. localStorage como fallback (solo este dispositivo).
+   1. Supabase, si hay VITE_SUPABASE_URL + VITE_SUPABASE_ANON_KEY
+      (tabla app_state — ver supabase/schema.sql). Compartido entre
+      todos los usuarios: es el modo "de verdad" para el grupo.
+   2. `window.storage` si existe (artifact de claude.ai).
+   3. localStorage (solo este dispositivo).
 
-   Para hacerla colaborativa de verdad (12 usuarios), sustituir
-   `loadState`/`saveState` por llamadas a Firebase/Supabase/etc.
-   El resto de la app no necesita cambios: solo consume estas
-   dos funciones.
+   La app solo consume loadState/saveState; el patrón
+   read-merge-write y el botón «Actualizar» viven en EquipoGumeo.jsx.
    ============================================================ */
 
+const SUPA_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPA_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+const hasSupabase = () => Boolean(SUPA_URL && SUPA_KEY);
 const hasArtifactStorage = () =>
   typeof window !== "undefined" && window.storage && typeof window.storage.get === "function";
 
+const supaHeaders = () => ({
+  apikey: SUPA_KEY,
+  Authorization: `Bearer ${SUPA_KEY}`,
+  "Content-Type": "application/json",
+});
+
 export async function loadState(key) {
+  if (hasSupabase()) {
+    const res = await fetch(
+      `${SUPA_URL}/rest/v1/app_state?key=eq.${encodeURIComponent(key)}&select=value`,
+      { headers: supaHeaders() }
+    );
+    if (!res.ok) throw new Error(`Supabase load: ${res.status}`);
+    const rows = await res.json();
+    return rows.length ? rows[0].value : null;
+  }
+
   if (hasArtifactStorage()) {
     try {
       const r = await window.storage.get(key, true);
@@ -27,6 +46,7 @@ export async function loadState(key) {
     }
     return null;
   }
+
   try {
     const raw = localStorage.getItem(key);
     return raw ? JSON.parse(raw) : null;
@@ -36,6 +56,16 @@ export async function loadState(key) {
 }
 
 export async function saveState(key, value) {
+  if (hasSupabase()) {
+    const res = await fetch(`${SUPA_URL}/rest/v1/app_state`, {
+      method: "POST",
+      headers: { ...supaHeaders(), Prefer: "resolution=merge-duplicates" },
+      body: JSON.stringify({ key, value, updated_at: new Date().toISOString() }),
+    });
+    if (!res.ok) throw new Error(`Supabase save: ${res.status}`);
+    return;
+  }
+
   const json = JSON.stringify(value);
   if (hasArtifactStorage()) {
     await window.storage.set(key, json, true);

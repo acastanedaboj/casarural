@@ -34,11 +34,10 @@ Comandos: `npm install`, `npm run dev`, `npm run build`.
 ## Decisiones técnicas importantes
 
 - **Persistencia**: toda pasa por `src/storage.js` (`loadState`/`saveState`), con una
-  única clave `gumeo-app-v1` que contiene todo el estado en JSON. Si existe
-  `window.storage` (artifact de claude.ai) lo usa con `shared: true`; si no, cae a
-  **localStorage** (solo ese dispositivo). ⚠️ Para colaboración real fuera de claude.ai
-  hay que sustituir esas dos funciones por un backend compartido (Firebase/Supabase…).
-  El resto de la app no necesita cambios.
+  única clave `gumeo-app-v1` que contiene todo el estado en JSON. Orden de backends:
+  **Supabase** (si hay `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY`; tabla
+  `app_state`, ver `supabase/schema.sql`, REST directo sin SDK) → `window.storage`
+  (artifact de claude.ai) → **localStorage** (solo ese dispositivo).
 - **Concurrencia**: patrón read-merge-write (relee el estado remoto antes de cada
   escritura) + refresco en `visibilitychange` + botón manual "Actualizar".
   Última escritura gana a nivel de blob.
@@ -50,7 +49,8 @@ Comandos: `npm install`, `npm run dev`, `npm run build`.
 
 - ✅ Convertida a proyecto Vite + React (build y smoke test en navegador OK).
 - ✅ Repo en GitHub: [acastanedaboj/casarural](https://github.com/acastanedaboj/casarural).
-- ⬜ Elegir y conectar backend compartido (Firebase/Supabase…) en `src/storage.js`.
+- ✅ Backend Supabase implementado en `src/storage.js` (necesita `.env` local y
+  las mismas variables en el hosting; tabla: `supabase/schema.sql`).
 - ⬜ Desplegar (Vercel, GitHub Pages…).
 
 ## Ideas mencionadas pero no implementadas

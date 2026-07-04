@@ -30,17 +30,19 @@ npm run build    # build de producción en dist/
 ## Persistencia
 
 Toda la persistencia pasa por [`src/storage.js`](src/storage.js) (`loadState`/`saveState`,
-una única clave `gumeo-app-v1` con todo el estado en JSON):
+una única clave `gumeo-app-v1` con todo el estado en JSON). Elige backend por este orden:
 
-- Dentro de un artifact de claude.ai usa `window.storage` con `shared: true`
-  (datos compartidos entre todos los usuarios).
-- Fuera (Vercel, GitHub Pages, local) cae a **localStorage**: la app funciona,
-  pero los datos son solo de ese dispositivo.
+1. **Supabase** (colaborativo, el modo bueno): si existen `VITE_SUPABASE_URL` y
+   `VITE_SUPABASE_ANON_KEY`. Configuración:
+   - Ejecutar [`supabase/schema.sql`](supabase/schema.sql) en el SQL Editor del proyecto
+     (crea la tabla `app_state` con RLS de lectura/escritura pública).
+   - Copiar `.env.example` a `.env` y rellenar con los datos de
+     *Project Settings → API* (también hay que definirlas en Vercel/Pages al desplegar).
+2. `window.storage` si la app corre dentro de un artifact de claude.ai.
+3. **localStorage** como último recurso (datos solo de ese dispositivo).
 
-Para hacerla colaborativa de verdad en un despliegue propio, sustituir esas dos
-funciones por un backend compartido (Firebase, Supabase…). El resto de la app no
-necesita cambios: usa un patrón read-merge-write (relee el estado remoto antes de
-cada escritura) + refresco en `visibilitychange` + botón manual «Actualizar».
+Concurrencia: patrón read-merge-write (relee el estado remoto antes de cada
+escritura) + refresco en `visibilitychange` + botón manual «Actualizar».
 Última escritura gana a nivel de blob.
 
 ## Ideas pendientes
