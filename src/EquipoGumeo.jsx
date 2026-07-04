@@ -405,6 +405,15 @@ function FontLoader() {
          visualViewport/innerHeight en PWAs de iOS excluyen las zonas
          seguras (status bar + gesto) y encogen el layout ~98pt. */
       .app-shell { height: 100%; height: 100dvh; }
+      /* Bug de WebKit en PWAs instaladas con status bar translúcida: el
+         alto en % (y dvh/innerHeight) excluye status bar + gesto (~93pt)
+         aunque el WebView pinte a pantalla completa → hueco blanco bajo
+         la barra. En standalone, 100vh SÍ mide la pantalla completa. */
+      @media (display-mode: standalone) {
+        html, body, #root, .app-shell { height: 100vh; }
+      }
+      html.ios-standalone, html.ios-standalone body,
+      html.ios-standalone #root, html.ios-standalone .app-shell { height: 100vh; }
       button { font-family: inherit; }
       input, textarea, select { font-family: inherit; }
       @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
