@@ -49,7 +49,7 @@ Comandos: `npm install`, `npm run dev`, `npm run build`.
 ## Estado
 
 - ✅ Convertida a proyecto Vite + React (build y smoke test en navegador OK).
-- ✅ Repo en GitHub: `acastanedaboj/equipo-gumeo`.
+- ✅ Repo en GitHub: [acastanedaboj/casarural](https://github.com/acastanedaboj/casarural).
 - ⬜ Elegir y conectar backend compartido (Firebase/Supabase…) en `src/storage.js`.
 - ⬜ Desplegar (Vercel, GitHub Pages…).
 
