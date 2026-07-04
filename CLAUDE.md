@@ -57,5 +57,5 @@ Comandos: `npm install`, `npm run dev`, `npm run build`.
 
 ## Ideas mencionadas pero no implementadas
 
-- Pestaña de gastos compartidos.
 - Asignación de responsables también en la lista "Ya llevamos".
+- Exigir día y momento al guardar una comida (hoy puede quedar «Sin fecha»).
