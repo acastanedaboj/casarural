@@ -26,15 +26,57 @@ const T = {
 
 const uid = () => Math.random().toString(36).slice(2, 9) + Date.now().toString(36).slice(-3);
 
+/* ---------- comidas: fecha + momento del día ---------- */
+const TRIP_MIN = "2026-07-16";
+const TRIP_MAX = "2026-07-19";
+const SLOTS = [
+  { id: "desayuno", label: "Desayuno", emoji: "☕" },
+  { id: "comida", label: "Comida", emoji: "🍽️" },
+  { id: "cena", label: "Cena", emoji: "🌙" },
+];
+const SLOT_ORDER = { desayuno: 0, comida: 1, cena: 2 };
+const SLOT_LABEL = { desayuno: "Desayuno", comida: "Comida", cena: "Cena" };
+
+function fmtWhen(m) {
+  if (m.date) {
+    const d = new Date(m.date + "T12:00:00");
+    let wd = d.toLocaleDateString("es-ES", { weekday: "short", day: "numeric" });
+    wd = wd.charAt(0).toUpperCase() + wd.slice(1);
+    return SLOT_LABEL[m.slot] ? `${wd} · ${SLOT_LABEL[m.slot]}` : wd;
+  }
+  return m.when || "Sin fecha";
+}
+
+const mealKey = (m) => `${m.date || "9999-99-99"}·${SLOT_ORDER[m.slot] ?? 9}`;
+const sortMeals = (meals) => [...meals].sort((a, b) => (mealKey(a) < mealKey(b) ? -1 : mealKey(a) > mealKey(b) ? 1 : 0));
+
+/* Migración: comidas antiguas solo tenían texto libre ("Vie 17 · noche").
+   Deduce date/slot de ese texto para poder ordenar y editar con el modelo nuevo. */
+function migrateMeals(d) {
+  if (!d || !Array.isArray(d.meals)) return d;
+  d.meals.forEach((m) => {
+    if (m.date) return;
+    const w = m.when || "";
+    const day = (w.match(/\b1[6-9]\b/) || [])[0];
+    if (day) m.date = `2026-07-${day}`;
+    if (!m.slot) {
+      if (/desayuno|mañana/i.test(w)) m.slot = "desayuno";
+      else if (/comida|mediod/i.test(w)) m.slot = "comida";
+      else if (/cena|noche/i.test(w)) m.slot = "cena";
+    }
+  });
+  return d;
+}
+
 const SEED = {
   version: 1,
   people: ["Álvaro", "María"],
   meals: [
-    { id: "m1", when: "Jue 16 · noche", title: "BBQ 1", desc: "Alitas, pinchitos, choricitos, ternera, pan y ensalada." },
-    { id: "m2", when: "Vie 17 · comida", title: "Boloñesa", desc: "Espaguetis boloñesa con carne picada y ensalada." },
-    { id: "m3", when: "Vie 17 · noche", title: "BBQ 2", desc: "Carne + verduras a la plancha + patatas/snacks." },
-    { id: "m4", when: "Sáb 18 · noche", title: "Tortillas", desc: "Tortillas de patata/francesas + embutido, queso y picoteo." },
-    { id: "m5", when: "Dom 19 · mañana", title: "Desayuno buffet", desc: "Desayuno buffet Gumeo y salida sin drama." },
+    { id: "m1", date: "2026-07-16", slot: "cena", title: "BBQ 1", desc: "Alitas, pinchitos, choricitos, ternera, pan y ensalada." },
+    { id: "m2", date: "2026-07-17", slot: "comida", title: "Boloñesa", desc: "Espaguetis boloñesa con carne picada y ensalada." },
+    { id: "m3", date: "2026-07-17", slot: "cena", title: "BBQ 2", desc: "Carne + verduras a la plancha + patatas/snacks." },
+    { id: "m4", date: "2026-07-18", slot: "cena", title: "Tortillas", desc: "Tortillas de patata/francesas + embutido, queso y picoteo." },
+    { id: "m5", date: "2026-07-19", slot: "desayuno", title: "Desayuno buffet", desc: "Desayuno buffet Gumeo y salida sin drama." },
   ],
   bring: [
     { id: "b1", text: "Aceite 1 L, mermelada, café y cafetera", done: false },
@@ -73,7 +115,7 @@ const SEED = {
 };
 
 /* ---------- storage helpers (backend en src/storage.js) ---------- */
-const fetchRemote = () => loadState(KEY);
+const fetchRemote = async () => migrateMeals(await loadState(KEY));
 
 /* ============================================================ */
 export default function EquipoGumeo() {
@@ -465,7 +507,7 @@ const addBtnStyle = {
    TAB 3 — COMIDAS
    ============================================================ */
 function ComidasTab({ data, mutate, setEditing }) {
-  const addMeal = () => setEditing({ type: "meal", meal: { id: uid(), when: "", title: "", desc: "" }, isNew: true });
+  const addMeal = () => setEditing({ type: "meal", meal: { id: uid(), date: "", slot: "", title: "", desc: "" }, isNew: true });
   return (
     <>
       <Card>
@@ -474,7 +516,7 @@ function ComidasTab({ data, mutate, setEditing }) {
         }>Plan de comidas «modo aventura»</SectionTitle>
         <p style={{ margin: "0 0 4px", fontSize: 13, color: T.sub }}>Toca una comida para editarla.</p>
       </Card>
-      {data.meals.map((m, idx) => (
+      {sortMeals(data.meals).map((m, idx) => (
         <button
           key={m.id}
           onClick={() => setEditing({ type: "meal", meal: m })}
@@ -484,7 +526,7 @@ function ComidasTab({ data, mutate, setEditing }) {
             borderRadius: 16, padding: "14px 16px", marginBottom: 12, boxShadow: "0 2px 6px rgba(20,50,70,0.04)",
           }}
         >
-          <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: 1, textTransform: "uppercase", color: T.sub }}>{m.when || "Sin fecha"}</div>
+          <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: 1, textTransform: "uppercase", color: T.sub }}>{fmtWhen(m)}</div>
           <div style={{ fontSize: 18, fontWeight: 800, margin: "3px 0", color: T.ink }}>{m.title || "Sin título"}</div>
           <div style={{ fontSize: 14, color: T.sub, lineHeight: 1.5 }}>{m.desc}</div>
         </button>
@@ -640,7 +682,8 @@ function EditModal({ editing, people, onClose, mutate }) {
   const isItem = editing.type === "item";
   const [text, setText] = useState(isItem ? editing.item.text : editing.meal.title);
   const [desc, setDesc] = useState(isItem ? "" : editing.meal.desc);
-  const [when, setWhen] = useState(isItem ? "" : editing.meal.when);
+  const [date, setDate] = useState(isItem ? "" : editing.meal.date || "");
+  const [slot, setSlot] = useState(isItem ? "" : editing.meal.slot || "");
   const [who, setWho] = useState(isItem ? editing.item.who : "");
 
   const save = () => {
@@ -654,10 +697,10 @@ function EditModal({ editing, people, onClose, mutate }) {
     } else {
       mutate((d) => {
         if (editing.isNew) {
-          d.meals.push({ id: editing.meal.id, when: when.trim(), title: text.trim() || "Comida", desc: desc.trim() });
+          d.meals.push({ id: editing.meal.id, date, slot, title: text.trim() || "Comida", desc: desc.trim() });
         } else {
           const m = d.meals.find((x) => x.id === editing.meal.id);
-          if (m) { m.title = text.trim() || m.title; m.desc = desc.trim(); m.when = when.trim(); }
+          if (m) { m.title = text.trim() || m.title; m.desc = desc.trim(); m.date = date; m.slot = slot; delete m.when; }
         }
         return d;
       });
@@ -695,10 +738,27 @@ function EditModal({ editing, people, onClose, mutate }) {
         </div>
 
         {!isItem && (
-          <label style={labelStyle}>
-            Cuándo
-            <input value={when} onChange={(e) => setWhen(e.target.value)} placeholder="Ej. Vie 17 · noche" style={{ ...inputStyle, width: "100%" }} />
-          </label>
+          <>
+            <label style={labelStyle}>
+              Día
+              <input
+                type="date"
+                value={date}
+                min={TRIP_MIN}
+                max={TRIP_MAX}
+                onChange={(e) => setDate(e.target.value)}
+                style={{ ...inputStyle, width: "100%" }}
+              />
+            </label>
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ fontSize: 13, fontWeight: 800, color: T.sub, marginBottom: 8 }}>Momento</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                {SLOTS.map((s) => (
+                  <PersonChip key={s.id} label={`${s.emoji} ${s.label}`} active={slot === s.id} onClick={() => setSlot(s.id)} />
+                ))}
+              </div>
+            </div>
+          </>
         )}
 
         <label style={labelStyle}>
