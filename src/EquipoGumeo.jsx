@@ -210,36 +210,6 @@ export default function EquipoGumeo() {
   const statusTimer = useRef(null);
   const kbOpen = useKeyboardOpen();
 
-  /* ---- altura real del viewport ----
-     Bug de WebKit en PWAs de iOS: al cerrar el teclado a veces no restaura
-     la altura del viewport y el layout queda encogido, dejando un hueco
-     bajo la barra de pestañas. Seguimos la altura del visualViewport. */
-  useEffect(() => {
-    const vv = window.visualViewport;
-    const apply = () => {
-      const h = Math.max(vv ? vv.height : 0, window.innerHeight || 0);
-      if (h) document.documentElement.style.setProperty("--app-h", Math.round(h) + "px");
-    };
-    apply();
-    // iOS a veces asienta el viewport tarde al arrancar la PWA y sin evento:
-    // re-medimos escalonadamente y al volver a la app.
-    const timers = [100, 400, 1000, 2500].map((ms) => setTimeout(apply, ms));
-    const onVis = () => { if (document.visibilityState === "visible") apply(); };
-    if (vv) vv.addEventListener("resize", apply);
-    window.addEventListener("resize", apply);
-    window.addEventListener("orientationchange", apply);
-    window.addEventListener("pageshow", apply);
-    document.addEventListener("visibilitychange", onVis);
-    return () => {
-      timers.forEach(clearTimeout);
-      if (vv) vv.removeEventListener("resize", apply);
-      window.removeEventListener("resize", apply);
-      window.removeEventListener("orientationchange", apply);
-      window.removeEventListener("pageshow", apply);
-      document.removeEventListener("visibilitychange", onVis);
-    };
-  }, []);
-
   /* ---- initial load ---- */
   useEffect(() => {
     (async () => {
@@ -431,9 +401,10 @@ function FontLoader() {
          desplazarse en iOS); desplaza el contenedor interior de contenido. */
       html, body, #root { height: 100%; }
       html, body { overflow: hidden; overscroll-behavior: none; }
-      /* Altura del shell: 100dvh la recalcula el navegador solo (teclado,
-         barras); --app-h la fija el JS con la altura real medida y manda. */
-      .app-shell { height: 100%; height: 100dvh; height: var(--app-h, 100dvh); }
+      /* Altura del shell: solo CSS. Nada de medirla con JS —
+         visualViewport/innerHeight en PWAs de iOS excluyen las zonas
+         seguras (status bar + gesto) y encogen el layout ~98pt. */
+      .app-shell { height: 100%; height: 100dvh; }
       button { font-family: inherit; }
       input, textarea, select { font-family: inherit; }
       @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
