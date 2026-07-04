@@ -217,17 +217,26 @@ export default function EquipoGumeo() {
   useEffect(() => {
     const vv = window.visualViewport;
     const apply = () => {
-      const h = vv ? vv.height : window.innerHeight;
-      document.documentElement.style.setProperty("--app-h", Math.round(h) + "px");
+      const h = Math.max(vv ? vv.height : 0, window.innerHeight || 0);
+      if (h) document.documentElement.style.setProperty("--app-h", Math.round(h) + "px");
     };
     apply();
+    // iOS a veces asienta el viewport tarde al arrancar la PWA y sin evento:
+    // re-medimos escalonadamente y al volver a la app.
+    const timers = [100, 400, 1000, 2500].map((ms) => setTimeout(apply, ms));
+    const onVis = () => { if (document.visibilityState === "visible") apply(); };
     if (vv) vv.addEventListener("resize", apply);
     window.addEventListener("resize", apply);
     window.addEventListener("orientationchange", apply);
+    window.addEventListener("pageshow", apply);
+    document.addEventListener("visibilitychange", onVis);
     return () => {
+      timers.forEach(clearTimeout);
       if (vv) vv.removeEventListener("resize", apply);
       window.removeEventListener("resize", apply);
       window.removeEventListener("orientationchange", apply);
+      window.removeEventListener("pageshow", apply);
+      document.removeEventListener("visibilitychange", onVis);
     };
   }, []);
 
@@ -300,7 +309,7 @@ export default function EquipoGumeo() {
   }
 
   return (
-    <div style={{ height: "var(--app-h, 100%)", display: "flex", flexDirection: "column", background: T.bg, color: T.ink, fontFamily: "'Nunito', 'Segoe UI', sans-serif" }}>
+    <div className="app-shell" style={{ display: "flex", flexDirection: "column", background: T.bg, color: T.ink, fontFamily: "'Nunito', 'Segoe UI', sans-serif" }}>
       <FontLoader />
 
       <div style={{ flex: 1, overflowY: "auto", WebkitOverflowScrolling: "touch" }}>
@@ -422,6 +431,9 @@ function FontLoader() {
          desplazarse en iOS); desplaza el contenedor interior de contenido. */
       html, body, #root { height: 100%; }
       html, body { overflow: hidden; overscroll-behavior: none; }
+      /* Altura del shell: 100dvh la recalcula el navegador solo (teclado,
+         barras); --app-h la fija el JS con la altura real medida y manda. */
+      .app-shell { height: 100%; height: 100dvh; height: var(--app-h, 100dvh); }
       button { font-family: inherit; }
       input, textarea, select { font-family: inherit; }
       @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
