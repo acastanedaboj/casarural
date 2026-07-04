@@ -254,6 +254,7 @@ export default function EquipoGumeo() {
       <div style={{ flex: 1, overflowY: "auto", WebkitOverflowScrolling: "touch" }}>
         <Header status={status} />
         <main style={{ maxWidth: 560, margin: "0 auto", padding: "16px 14px 24px" }}>
+          <InstallBanner />
           {tab === "finca" && <FincaTab />}
           {tab === "viaje" && <ViajeTab data={data} mutate={mutate} />}
           {tab === "comidas" && <ComidasTab data={data} mutate={mutate} setEditing={setEditing} />}
@@ -284,6 +285,77 @@ export default function EquipoGumeo() {
         />
       )}
     </div>
+  );
+}
+
+/* ============================================================
+   BANNER DE INSTALACIÓN
+   Android/Chrome: botón que lanza el diálogo nativo (beforeinstallprompt).
+   iOS: Apple no permite instalar por botón → instrucciones.
+   Oculto si ya está instalada o si el usuario lo descarta (por dispositivo).
+   ============================================================ */
+const INSTALL_DISMISS_KEY = "gumeo-install-dismissed";
+
+function InstallBanner() {
+  const [deferred, setDeferred] = useState(null);
+  const [hidden, setHidden] = useState(() => {
+    try { return localStorage.getItem(INSTALL_DISMISS_KEY) === "1"; } catch (e) { return true; }
+  });
+
+  const standalone =
+    (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) ||
+    window.navigator.standalone === true;
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+
+  useEffect(() => {
+    const onPrompt = (e) => { e.preventDefault(); setDeferred(e); };
+    const onInstalled = () => setHidden(true);
+    window.addEventListener("beforeinstallprompt", onPrompt);
+    window.addEventListener("appinstalled", onInstalled);
+    return () => {
+      window.removeEventListener("beforeinstallprompt", onPrompt);
+      window.removeEventListener("appinstalled", onInstalled);
+    };
+  }, []);
+
+  if (standalone || hidden) return null;
+  if (!deferred && !isIOS) return null;
+
+  const dismiss = () => {
+    try { localStorage.setItem(INSTALL_DISMISS_KEY, "1"); } catch (e) {}
+    setHidden(true);
+  };
+
+  const install = async () => {
+    deferred.prompt();
+    const { outcome } = await deferred.userChoice;
+    setDeferred(null);
+    if (outcome === "accepted") dismiss();
+  };
+
+  return (
+    <Card style={{ border: `2px solid ${T.albero}`, display: "flex", alignItems: "center", gap: 12 }}>
+      <span style={{ fontSize: 26 }}>📲</span>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 14, fontWeight: 800 }}>Lleva el cartel Gumeo encima</div>
+        {deferred ? (
+          <div style={{ fontSize: 13, color: T.sub }}>Instálala y tendrás la app en tu pantalla de inicio.</div>
+        ) : (
+          <div style={{ fontSize: 13, color: T.sub }}>
+            Toca <strong>compartir</strong> (el cuadrado con la flecha ↑) y elige <strong>«Añadir a pantalla de inicio»</strong>.
+          </div>
+        )}
+        {deferred && (
+          <button onClick={install} style={{ ...addBtnStyle, marginTop: 8, padding: "9px 14px" }}>
+            Instalar la app
+          </button>
+        )}
+      </div>
+      <button onClick={dismiss} aria-label="No volver a mostrar"
+        style={{ background: T.bg, border: "none", borderRadius: 99, width: 28, height: 28, cursor: "pointer", fontSize: 13, fontWeight: 800, color: T.sub, flexShrink: 0 }}>
+        ✕
+      </button>
+    </Card>
   );
 }
 
