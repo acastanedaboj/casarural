@@ -68,9 +68,55 @@ function migrateMeals(d) {
   return d;
 }
 
+/* ---------- gastos compartidos ---------- */
+const fmtEUR = (n) =>
+  (n || 0).toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
+
+const parseAmount = (s) => {
+  const n = parseFloat(String(s).replace(/\./g, "").replace(",", ".").replace(/[^\d.-]/g, ""));
+  return Number.isFinite(n) ? Math.round(n * 100) / 100 : 0;
+};
+
+/* Balance neto por persona: positivo = le deben, negativo = debe. */
+function computeBalances(expenses, people) {
+  const bal = {};
+  const add = (name, v) => { if (name) bal[name] = (bal[name] || 0) + v; };
+  expenses.forEach((e) => {
+    const parts = e.participants && e.participants.length ? e.participants : people;
+    if (!parts.length || !e.amount) return;
+    add(e.payer, e.amount);
+    parts.forEach((p) => add(p, -e.amount / parts.length));
+  });
+  return bal;
+}
+
+/* Transferencias mínimas: casa al mayor deudor con el mayor acreedor (en céntimos). */
+function settleUp(bal) {
+  const debt = [], cred = [];
+  Object.entries(bal).forEach(([n, v]) => {
+    const c = Math.round(v * 100);
+    if (c < 0) debt.push({ n, v: -c });
+    else if (c > 0) cred.push({ n, v: c });
+  });
+  debt.sort((a, b) => b.v - a.v);
+  cred.sort((a, b) => b.v - a.v);
+  const out = [];
+  let i = 0, j = 0;
+  while (i < debt.length && j < cred.length) {
+    const x = Math.min(debt[i].v, cred[j].v);
+    if (x > 0) out.push({ from: debt[i].n, to: cred[j].n, amount: x / 100 });
+    debt[i].v -= x;
+    cred[j].v -= x;
+    if (!debt[i].v) i++;
+    if (!cred[j].v) j++;
+  }
+  return out;
+}
+
 const SEED = {
   version: 1,
   people: ["Álvaro", "María"],
+  expenses: [],
   meals: [
     { id: "m1", date: "2026-07-16", slot: "cena", title: "BBQ 1", desc: "Alitas, pinchitos, choricitos, ternera, pan y ensalada." },
     { id: "m2", date: "2026-07-17", slot: "comida", title: "Boloñesa", desc: "Espaguetis boloñesa con carne picada y ensalada." },
@@ -114,8 +160,16 @@ const SEED = {
   ],
 };
 
+/* Estados guardados por versiones anteriores: comidas de texto libre y sin gastos. */
+function normalizeState(d) {
+  if (!d) return d;
+  migrateMeals(d);
+  if (!Array.isArray(d.expenses)) d.expenses = [];
+  return d;
+}
+
 /* ---------- storage helpers (backend en src/storage.js) ---------- */
-const fetchRemote = async () => migrateMeals(await loadState(KEY));
+const fetchRemote = async () => normalizeState(await loadState(KEY));
 
 /* ============================================================ */
 export default function EquipoGumeo() {
@@ -203,6 +257,7 @@ export default function EquipoGumeo() {
         {tab === "viaje" && <ViajeTab data={data} mutate={mutate} />}
         {tab === "comidas" && <ComidasTab data={data} mutate={mutate} setEditing={setEditing} />}
         {tab === "compra" && <CompraTab data={data} mutate={mutate} setEditing={setEditing} />}
+        {tab === "gastos" && <GastosTab data={data} setEditing={setEditing} />}
         <footer style={{ textAlign: "center", padding: "28px 20px 10px", color: T.sub, fontSize: 13, fontStyle: "italic" }}>
           «Que falte sueño… pero nunca café, hielo ni pan para mojar»
         </footer>
@@ -210,7 +265,15 @@ export default function EquipoGumeo() {
 
       <TabBar tab={tab} setTab={setTab} />
 
-      {editing && (
+      {editing && editing.type === "expense" && (
+        <ExpenseModal
+          editing={editing}
+          people={data.people}
+          onClose={() => setEditing(null)}
+          mutate={mutate}
+        />
+      )}
+      {editing && editing.type !== "expense" && (
         <EditModal
           editing={editing}
           people={data.people}
@@ -273,6 +336,7 @@ const TABS = [
   { id: "viaje", label: "El Viaje", emoji: "📅" },
   { id: "comidas", label: "Comidas", emoji: "🍖" },
   { id: "compra", label: "Compra", emoji: "✅" },
+  { id: "gastos", label: "Gastos", emoji: "💶" },
 ];
 
 function TabBar({ tab, setTab }) {
@@ -714,6 +778,196 @@ function Checkbox({ checked, onToggle }) {
     >
       {checked ? "✓" : ""}
     </button>
+  );
+}
+
+/* ============================================================
+   TAB 5 — GASTOS COMPARTIDOS
+   ============================================================ */
+function GastosTab({ data, setEditing }) {
+  const expenses = data.expenses || [];
+  const total = expenses.reduce((s, e) => s + (e.amount || 0), 0);
+  const bal = computeBalances(expenses, data.people);
+  const transfers = settleUp(bal);
+  const names = Object.keys(bal).sort((a, b) => bal[b] - bal[a]);
+
+  const addExpense = () =>
+    setEditing({ type: "expense", expense: { id: uid(), desc: "", amount: 0, payer: "", participants: null }, isNew: true });
+
+  return (
+    <>
+      <Card style={{ textAlign: "center", background: T.vine, color: "#fff", border: "none" }}>
+        <div style={{ fontSize: 13, fontWeight: 800, letterSpacing: 2, textTransform: "uppercase", opacity: 0.85 }}>Bote del finde</div>
+        <div style={{ fontFamily: "'Titan One', cursive", fontSize: 42, lineHeight: 1.2 }}>{fmtEUR(total)}</div>
+        <div style={{ fontSize: 13, fontWeight: 700, opacity: 0.9 }}>
+          {expenses.length === 0 ? "Aún sin gastos apuntados" : `${expenses.length} ${expenses.length === 1 ? "gasto apuntado" : "gastos apuntados"}`}
+        </div>
+      </Card>
+
+      <Card>
+        <SectionTitle emoji="🧾" right={
+          <button onClick={addExpense} style={{ ...addBtnStyle, padding: "8px 12px" }}>+ Gasto</button>
+        }>Gastos</SectionTitle>
+        {expenses.length === 0 && (
+          <p style={{ margin: 0, fontSize: 13, color: T.sub }}>
+            Apunta aquí lo que vaya pagando cada uno (la compra, la fianza, el carbón…) y la app hace las cuentas.
+          </p>
+        )}
+        {[...expenses].reverse().map((e) => (
+          <button
+            key={e.id}
+            onClick={() => setEditing({ type: "expense", expense: e })}
+            style={{
+              display: "flex", alignItems: "center", gap: 10, width: "100%", textAlign: "left",
+              background: "none", border: "none", borderBottom: `1px solid ${T.line}`,
+              padding: "10px 0", cursor: "pointer",
+            }}
+          >
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 15, fontWeight: 700, color: T.ink }}>{e.desc}</div>
+              <div style={{ fontSize: 12, color: T.sub }}>
+                Pagó {e.payer} · entre {(e.participants && e.participants.length) || data.people.length}
+              </div>
+            </div>
+            <div style={{ fontSize: 15, fontWeight: 800, color: T.ink, whiteSpace: "nowrap" }}>{fmtEUR(e.amount)}</div>
+          </button>
+        ))}
+      </Card>
+
+      {expenses.length > 0 && (
+        <Card>
+          <SectionTitle emoji="⚖️">Cómo va cada uno</SectionTitle>
+          {names.map((n) => {
+            const v = Math.round(bal[n] * 100) / 100;
+            const color = v > 0.004 ? T.vine : v < -0.004 ? T.wine : T.sub;
+            return (
+              <div key={n} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: `1px solid ${T.line}`, fontSize: 14 }}>
+                <span style={{ fontWeight: 700 }}>{n}</span>
+                <span style={{ fontWeight: 800, color }}>
+                  {v > 0.004 ? `le deben ${fmtEUR(v)}` : v < -0.004 ? `debe ${fmtEUR(-v)}` : "en paz ✓"}
+                </span>
+              </div>
+            );
+          })}
+        </Card>
+      )}
+
+      {expenses.length > 0 && (
+        <Card>
+          <SectionTitle emoji="🤝">Para saldar cuentas</SectionTitle>
+          {transfers.length === 0 ? (
+            <p style={{ margin: 0, fontSize: 14, color: T.sub }}>Todo cuadrado, nadie debe nada ✓</p>
+          ) : (
+            transfers.map((t, i) => (
+              <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "9px 0", borderBottom: `1px solid ${T.line}`, fontSize: 14 }}>
+                <span style={{ fontWeight: 700 }}>{t.from} <span style={{ color: T.sub }}>→</span> {t.to}</span>
+                <span style={{ fontWeight: 800 }}>{fmtEUR(t.amount)}</span>
+              </div>
+            ))
+          )}
+        </Card>
+      )}
+    </>
+  );
+}
+
+/* ============================================================
+   EXPENSE MODAL
+   ============================================================ */
+function ExpenseModal({ editing, people, onClose, mutate }) {
+  const e = editing.expense;
+  const [desc, setDesc] = useState(e.desc || "");
+  const [amount, setAmount] = useState(e.amount ? String(e.amount).replace(".", ",") : "");
+  const [payer, setPayer] = useState(e.payer || "");
+  const [parts, setParts] = useState(e.participants && e.participants.length ? e.participants : people);
+
+  const toggle = (p) => setParts((prev) => (prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p]));
+  const amountNum = parseAmount(amount);
+  const valid = amountNum > 0 && payer && parts.length > 0;
+
+  const save = () => {
+    if (!valid) return;
+    mutate((d) => {
+      d.expenses = d.expenses || [];
+      const fields = { desc: desc.trim() || "Gasto", amount: amountNum, payer, participants: [...parts] };
+      if (editing.isNew) d.expenses.push({ id: e.id, ...fields });
+      else {
+        const cur = d.expenses.find((g) => g.id === e.id);
+        if (cur) Object.assign(cur, fields);
+      }
+      return d;
+    });
+    onClose();
+  };
+
+  const remove = () => {
+    mutate((d) => { d.expenses = (d.expenses || []).filter((g) => g.id !== e.id); return d; });
+    onClose();
+  };
+
+  return (
+    <div
+      onClick={onClose}
+      style={{ position: "fixed", inset: 0, background: "rgba(15,30,40,0.55)", zIndex: 60, display: "flex", alignItems: "flex-end", justifyContent: "center" }}
+    >
+      <div
+        onClick={(ev) => ev.stopPropagation()}
+        style={{ background: "#fff", borderRadius: "20px 20px 0 0", width: "100%", maxWidth: 560, padding: "20px 18px", paddingBottom: "calc(26px + env(safe-area-inset-bottom))", maxHeight: "85vh", overflowY: "auto" }}
+      >
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+          <h3 style={{ margin: 0, fontSize: 17, fontWeight: 800 }}>{editing.isNew ? "Nuevo gasto" : "Editar gasto"}</h3>
+          <button onClick={onClose} aria-label="Cerrar" style={{ background: T.bg, border: "none", borderRadius: 99, width: 32, height: 32, cursor: "pointer", fontSize: 15, fontWeight: 800, color: T.sub }}>✕</button>
+        </div>
+
+        <label style={labelStyle}>
+          Qué
+          <input value={desc} onChange={(ev) => setDesc(ev.target.value)} placeholder="Ej. Compra del Mercadona" style={{ ...inputStyle, width: "100%" }} />
+        </label>
+
+        <label style={labelStyle}>
+          Cuánto (€)
+          <input value={amount} onChange={(ev) => setAmount(ev.target.value)} inputMode="decimal" placeholder="0,00" style={{ ...inputStyle, width: "100%" }} />
+        </label>
+
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ fontSize: 13, fontWeight: 800, color: T.sub, marginBottom: 8 }}>Quién lo pagó</div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            {people.map((p) => (
+              <PersonChip key={p} label={p} active={payer === p} onClick={() => setPayer(p)} />
+            ))}
+          </div>
+        </div>
+
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ fontSize: 13, fontWeight: 800, color: T.sub, marginBottom: 8 }}>Entre quiénes se reparte</div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            <PersonChip label="Todos" active={parts.length === people.length} onClick={() => setParts(people)} />
+            {people.map((p) => (
+              <PersonChip key={p} label={p} active={parts.includes(p)} onClick={() => toggle(p)} />
+            ))}
+          </div>
+        </div>
+
+        {people.length === 0 && (
+          <div style={{ fontSize: 12, color: T.sub, marginBottom: 14 }}>Añade personas en la pestaña «El Viaje» para poder apuntar gastos.</div>
+        )}
+
+        <div style={{ display: "flex", gap: 10, marginTop: 6 }}>
+          {!editing.isNew && (
+            <button onClick={remove} style={{ background: "#fff", border: `2px solid ${T.wine}`, color: T.wine, borderRadius: 12, padding: "12px 14px", fontWeight: 800, fontSize: 14, cursor: "pointer" }}>
+              🗑️ Eliminar
+            </button>
+          )}
+          <button
+            onClick={save}
+            disabled={!valid}
+            style={{ flex: 1, background: valid ? T.cobalt : T.done, color: "#fff", border: "none", borderRadius: 12, padding: "12px 14px", fontWeight: 800, fontSize: 15, cursor: valid ? "pointer" : "default" }}
+          >
+            Guardar
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
