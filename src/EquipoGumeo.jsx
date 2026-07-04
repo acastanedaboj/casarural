@@ -171,6 +171,36 @@ function normalizeState(d) {
 /* ---------- storage helpers (backend en src/storage.js) ---------- */
 const fetchRemote = async () => normalizeState(await loadState(KEY));
 
+/* Detecta teclado en pantalla abierto (un campo de texto con foco).
+   Mientras escribe, la barra de pestañas se oculta: si no, el paneo que
+   hace iOS al abrir el teclado la arrastra fuera de su sitio. */
+function useKeyboardOpen() {
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    let t;
+    const isField = (el) => el && /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName);
+    const onFocusIn = (e) => { if (isField(e.target)) { clearTimeout(t); setOpen(true); } };
+    const onFocusOut = (e) => {
+      if (!isField(e.target)) return;
+      clearTimeout(t);
+      t = setTimeout(() => {
+        if (!isField(document.activeElement)) {
+          setOpen(false);
+          window.scrollTo(0, 0); // deshace el paneo residual de iOS al cerrarse el teclado
+        }
+      }, 150);
+    };
+    document.addEventListener("focusin", onFocusIn);
+    document.addEventListener("focusout", onFocusOut);
+    return () => {
+      document.removeEventListener("focusin", onFocusIn);
+      document.removeEventListener("focusout", onFocusOut);
+      clearTimeout(t);
+    };
+  }, []);
+  return open;
+}
+
 /* ============================================================ */
 export default function EquipoGumeo() {
   const [data, setData] = useState(null);
@@ -178,6 +208,7 @@ export default function EquipoGumeo() {
   const [status, setStatus] = useState("");   // "", "saving", "saved", "error"
   const [editing, setEditing] = useState(null); // {type, catId?, item?} modal state
   const statusTimer = useRef(null);
+  const kbOpen = useKeyboardOpen();
 
   /* ---- initial load ---- */
   useEffect(() => {
@@ -266,7 +297,7 @@ export default function EquipoGumeo() {
         </main>
       </div>
 
-      <TabBar tab={tab} setTab={setTab} />
+      <TabBar tab={tab} setTab={setTab} hidden={kbOpen} />
 
       {editing && editing.type === "expense" && (
         <ExpenseModal
@@ -416,11 +447,11 @@ const TABS = [
   { id: "gastos", label: "Gastos", emoji: "💶" },
 ];
 
-function TabBar({ tab, setTab }) {
+function TabBar({ tab, setTab, hidden }) {
   return (
     <nav style={{
       flexShrink: 0, background: T.card,
-      borderTop: `1px solid ${T.line}`, display: "flex", justifyContent: "center",
+      borderTop: `1px solid ${T.line}`, display: hidden ? "none" : "flex", justifyContent: "center",
       boxShadow: "0 -4px 16px rgba(20,50,70,0.08)", zIndex: 40,
       paddingBottom: "env(safe-area-inset-bottom)",
     }}>
