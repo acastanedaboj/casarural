@@ -49,9 +49,11 @@ Comandos: `npm install`, `npm run dev`, `npm run build`.
 
 - ✅ Convertida a proyecto Vite + React (build y smoke test en navegador OK).
 - ✅ Repo en GitHub: [acastanedaboj/casarural](https://github.com/acastanedaboj/casarural).
-- ✅ Backend Supabase implementado en `src/storage.js` (necesita `.env` local y
-  las mismas variables en el hosting; tabla: `supabase/schema.sql`).
-- ⬜ Desplegar (Vercel, GitHub Pages…).
+- ✅ Backend Supabase conectado y verificado (proyecto `lgrkoowptxgyvhfiyxxj`,
+  tabla `app_state`; credenciales en `.env` local y en las *variables* de Actions
+  del repo; tabla: `supabase/schema.sql`).
+- ✅ Desplegada en **GitHub Pages**: https://acastanedaboj.github.io/casarural/
+  (workflow `.github/workflows/deploy.yml`, se redespliega en cada push a `main`).
 
 ## Ideas mencionadas pero no implementadas
 
