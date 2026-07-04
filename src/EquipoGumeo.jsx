@@ -194,6 +194,7 @@ function FontLoader() {
   return (
     <style>{`
       * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+      html, body { overflow-x: hidden; }
       button { font-family: inherit; }
       input, textarea, select { font-family: inherit; }
       @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
@@ -245,6 +246,7 @@ function TabBar({ tab, setTab }) {
       position: "fixed", bottom: 0, left: 0, right: 0, background: T.card,
       borderTop: `1px solid ${T.line}`, display: "flex", justifyContent: "center",
       boxShadow: "0 -4px 16px rgba(20,50,70,0.08)", zIndex: 40,
+      paddingBottom: "env(safe-area-inset-bottom)",
     }}>
       <div style={{ display: "flex", width: "100%", maxWidth: 560 }}>
         {TABS.map((t) => {
@@ -450,7 +452,9 @@ function ViajeTab({ data, mutate }) {
 
 const inputStyle = {
   flex: 1, border: `2px solid ${T.line}`, borderRadius: 12, padding: "11px 12px",
-  fontSize: 15, outline: "none", background: "#fff", color: T.ink, minWidth: 0,
+  // 16px mínimo: con menos, iOS Safari hace zoom al enfocar el campo
+  // y deja la página con scroll lateral.
+  fontSize: 16, outline: "none", background: "#fff", color: T.ink, minWidth: 0,
 };
 const addBtnStyle = {
   background: T.cobalt, color: "#fff", border: "none", borderRadius: 12,
@@ -681,7 +685,7 @@ function EditModal({ editing, people, onClose, mutate }) {
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        style={{ background: "#fff", borderRadius: "20px 20px 0 0", width: "100%", maxWidth: 560, padding: "20px 18px 26px", maxHeight: "85vh", overflowY: "auto" }}
+        style={{ background: "#fff", borderRadius: "20px 20px 0 0", width: "100%", maxWidth: 560, padding: "20px 18px", paddingBottom: "calc(26px + env(safe-area-inset-bottom))", maxHeight: "85vh", overflowY: "auto" }}
       >
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
           <h3 style={{ margin: 0, fontSize: 17, fontWeight: 800 }}>
