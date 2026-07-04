@@ -107,6 +107,19 @@ export default function EquipoGumeo() {
     return () => document.removeEventListener("visibilitychange", onVis);
   }, []);
 
+  /* ---- auto-refresh: sondeo cada 15 s mientras la app está visible ---- */
+  useEffect(() => {
+    const id = setInterval(async () => {
+      if (document.visibilityState !== "visible") return;
+      const remote = await fetchRemote();
+      if (remote) {
+        // Solo re-renderiza si de verdad hay cambios remotos
+        setData((prev) => (JSON.stringify(prev) === JSON.stringify(remote) ? prev : remote));
+      }
+    }, 15000);
+    return () => clearInterval(id);
+  }, []);
+
   const flashStatus = (s) => {
     setStatus(s);
     if (statusTimer.current) clearTimeout(statusTimer.current);
