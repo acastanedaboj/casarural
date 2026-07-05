@@ -209,6 +209,14 @@ export default function EquipoGumeo() {
   const [editing, setEditing] = useState(null); // {type, catId?, item?} modal state
   const statusTimer = useRef(null);
   const kbOpen = useKeyboardOpen();
+  const scrollerRef = useRef(null);
+
+  /* Cada pestaña empieza arriba: si no, se hereda el scroll de la anterior
+     y una pestaña más corta aparece en blanco o descentrada (iOS además
+     no repinta bien el overflow al quedar fuera de rango). */
+  useEffect(() => {
+    if (scrollerRef.current) scrollerRef.current.scrollTop = 0;
+  }, [tab]);
 
   /* ---- initial load ---- */
   useEffect(() => {
@@ -282,7 +290,7 @@ export default function EquipoGumeo() {
     <div className="app-shell" style={{ display: "flex", flexDirection: "column", background: T.bg, color: T.ink, fontFamily: "'Nunito', 'Segoe UI', sans-serif" }}>
       <FontLoader />
 
-      <div style={{ flex: 1, overflowY: "auto", WebkitOverflowScrolling: "touch" }}>
+      <div ref={scrollerRef} style={{ flex: 1, overflowY: "auto" }}>
         <Header status={status} />
         <main style={{ maxWidth: 560, margin: "0 auto", padding: "16px 14px 24px" }}>
           <InstallBanner />
