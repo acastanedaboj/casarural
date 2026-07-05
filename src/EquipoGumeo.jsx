@@ -542,6 +542,7 @@ function FincaTab() {
   const chips = [
     "🛏️ 8 hab. dobles (16 pax)", "🚿 4 baños + aseos", "🏊 Piscina 64 m²", "🔥 Barbacoa con parrillas",
     "🏓 Ping-pong y baloncesto", "📶 WiFi en toda la casa", "❄️ A/C en dormitorios", "🌳 Finca de 8 ha con viñedo",
+    "👶 1 cuna", "☕ Cafetera italiana",
   ];
   const condiciones = [
     ["💶 Fianza", "150 € a la llegada, se devuelve tras la salida."],
